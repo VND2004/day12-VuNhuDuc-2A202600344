@@ -72,7 +72,7 @@ Qdrant (Vector DB)
 
 ### Exercise 3.1: Railway deployment
 - URL: https://agent-production-a5a7.up.railway.app
-- Screenshot: [Link to screenshot in repo]
+- Screenshot: [Service running](screenshots/running.jpg)
 
 ## Part 4: API Security
 
@@ -85,7 +85,7 @@ Qdrant (Vector DB)
 3. Rotate key: đổi giá trị biến môi trường `AGENT_API_KEY` trên server/container, rồi restart service để app nạp key mới. Để không gián đoạn, có thể áp dụng chiến lược overlap ngắn hạn (chấp nhận cả key cũ và key mới trong thời gian chuyển đổi), sau đó thu hồi key cũ.
 
 #### Exercise 4.2: JWT authentication
-[Paste your test outputs]
+[JWT Authentication Output](screenshots/jwt_auth.jpg)
 
 #### Exercise 4.3: Rate limiting
 1. **Algorithm được dùng:** Sliding Window Counter (cài bằng `deque` timestamps theo từng user). Mỗi request sẽ xóa các timestamp cũ ngoài cửa sổ 60 giây, rồi kiểm tra số request còn trong window.

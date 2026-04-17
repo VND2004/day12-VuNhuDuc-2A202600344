@@ -1,8 +1,8 @@
 #  Delivery Checklist — Day 12 Lab Submission
 
-> **Student Name:** _________________________  
-> **Student ID:** _________________________  
-> **Date:** _________________________
+> **Student Name:** Vũ Như Đức \
+> **Student ID:** 2A202600344 \
+> **Date:** 17/4/2026
 
 ---
 
@@ -136,9 +136,9 @@ curl -X POST https://your-agent.railway.app/ask \
 - LOG_LEVEL
 
 ## Screenshots
-- [Deployment dashboard](screenshots/dashboard.png)
-- [Service running](screenshots/running.png)
-- [Test results](screenshots/test.png)
+- [Deployment dashboard](screenshots/dashboard.jpg)
+- [Service running](screenshots/running.jpg)
+- [Test results](screenshots/test.jpg)
 ```
 
 ##  Pre-Submission Checklist

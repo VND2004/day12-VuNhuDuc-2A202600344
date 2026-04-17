@@ -5,7 +5,7 @@ Kết hợp TẤT CẢ những gì đã học trong 1 project hoàn chỉnh.
 ## Checklist Deliverable
 
 - [x] Dockerfile (multi-stage, < 500 MB)
-- [x] docker-compose.yml (agent + redis)
+- [x] docker-compose.yml (agent + redis + nginx)
 - [x] .dockerignore
 - [x] Health check endpoint (`GET /health`)
 - [x] Readiness endpoint (`GET /ready`)
@@ -26,11 +26,14 @@ Kết hợp TẤT CẢ những gì đã học trong 1 project hoàn chỉnh.
 ├── app/
 │   ├── main.py         # Entry point — kết hợp tất cả
 │   ├── config.py       # 12-factor config
-│   ├── auth.py         # API Key + JWT
+│   ├── auth.py         # API Key auth
 │   ├── rate_limiter.py # Rate limiting
 │   └── cost_guard.py   # Budget protection
+├── utils/
+│   └── mock_llm.py     # Mock model for local testing
 ├── Dockerfile          # Multi-stage, production-ready
-├── docker-compose.yml  # Full stack
+├── docker-compose.yml  # Agent x3 + Redis + Nginx
+├── nginx.conf          # Load balancer config
 ├── railway.toml        # Deploy Railway
 ├── render.yaml         # Deploy Render
 ├── .env.example        # Template
@@ -46,18 +49,21 @@ Kết hợp TẤT CẢ những gì đã học trong 1 project hoàn chỉnh.
 # 1. Setup
 cp .env.example .env
 
-# 2. Chạy với Docker Compose
-docker compose up
+# 2. Chạy với Docker Compose (3 agent instances)
+docker compose up -d --build --scale agent=3
 
-# 3. Test
-curl http://localhost/health
+# 3. Test health qua Nginx
+curl http://localhost:8080/health
 
-# 4. Lấy API key từ .env, test endpoint
-API_KEY=$(grep AGENT_API_KEY .env | cut -d= -f2)
+# 4. Test /ask
+API_KEY=secret-key-123
 curl -H "X-API-Key: $API_KEY" \
-     -X POST http://localhost/ask \
+     -X POST http://localhost:8080/ask \
      -H "Content-Type: application/json" \
-     -d '{"question": "What is deployment?"}'
+     -d '{"user_id": "student1", "question": "What is deployment?"}'
+
+# 5. View history (stateless in Redis)
+curl -H "X-API-Key: $API_KEY" http://localhost:8080/history/student1
 ```
 
 ---

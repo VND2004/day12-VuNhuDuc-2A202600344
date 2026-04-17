@@ -191,7 +191,7 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     logger.info(f"Starting agent on port {port}")
     uvicorn.run(
-        app,
+        "app:app",
         host="0.0.0.0",
         port=port,
         # ✅ Cho phép graceful shutdown

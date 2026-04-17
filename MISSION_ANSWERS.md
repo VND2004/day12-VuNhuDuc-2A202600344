@@ -71,27 +71,96 @@ Qdrant (Vector DB)
 ## Part 3: Cloud Deployment
 
 ### Exercise 3.1: Railway deployment
-- URL: https://your-app.railway.app
+- URL: https://agent-production-a5a7.up.railway.app
 - Screenshot: [Link to screenshot in repo]
-
-### Exercise 3.2: Deployment notes
-1. [Your answer]
-2. [Your answer]
 
 ## Part 4: API Security
 
 ### Exercise 4.1-4.3: Test results
+#### Exercise 4.1: API key flow (from app.py)
+1. API key được check trong dependency `verify_api_key()` của endpoint `/ask`, thông qua header `X-API-Key` (khai báo bằng `APIKeyHeader(name="X-API-Key", auto_error=False)`).
+2. Nếu sai key:
+    - Thiếu key: trả về `401` với message yêu cầu gửi header `X-API-Key`.
+    - Key không đúng: trả về `403` với message `Invalid API key.`
+3. Rotate key: đổi giá trị biến môi trường `AGENT_API_KEY` trên server/container, rồi restart service để app nạp key mới. Để không gián đoạn, có thể áp dụng chiến lược overlap ngắn hạn (chấp nhận cả key cũ và key mới trong thời gian chuyển đổi), sau đó thu hồi key cũ.
+
+#### Exercise 4.2: JWT authentication
 [Paste your test outputs]
 
+#### Exercise 4.3: Rate limiting
+1. **Algorithm được dùng:** Sliding Window Counter (cài bằng `deque` timestamps theo từng user). Mỗi request sẽ xóa các timestamp cũ ngoài cửa sổ 60 giây, rồi kiểm tra số request còn trong window.
+2. **Limit requests/minute:**
+    - User thường: `10 requests / 60s` (`rate_limiter_user = RateLimiter(max_requests=10, window_seconds=60)`)
+    - Admin: `100 requests / 60s` (`rate_limiter_admin = RateLimiter(max_requests=100, window_seconds=60)`)
+3. **Bypass limit cho admin:** Không phải bỏ hẳn rate limit, mà dùng tier cao hơn. Trong `app.py`, nếu `role == "admin"` thì chọn `rate_limiter_admin`; ngược lại dùng `rate_limiter_user`.
+
 ### Exercise 4.4: Cost guard implementation
-[Explain your approach]
+1. Cost guard được đặt ngay trước bước gọi LLM trong endpoint `/ask` để chặn request nếu user hoặc hệ thống đã gần/vượt budget, tránh phát sinh thêm chi phí không cần thiết.
+2. Mỗi request sẽ gọi `cost_guard.check_budget(username)` để kiểm tra 2 lớp giới hạn: budget theo user mỗi ngày (`$1/day`) và budget tổng của service (`$10/day`). Nếu vượt ngưỡng, API trả `402` cho user hoặc `503` khi toàn hệ thống hết budget.
+3. Sau khi nhận response từ LLM, hệ thống ước lượng token usage từ input/output, rồi gọi `cost_guard.record_usage(...)` để cộng dồn số request, token đã dùng và tổng cost. Khi user chạm khoảng `80%` budget thì hệ thống chỉ log cảnh báo để theo dõi sớm.
+4. Thiết kế này phù hợp cho demo vì đơn giản và dễ hiểu; nếu đưa vào production thật thì nên thay phần lưu in-memory bằng Redis/DB để budget không bị mất khi restart service.
 
 ## Part 5: Scaling & Reliability
 
-### Exercise 5.1-5.5: Implementation notes
-[Your explanations and test results]
+### Exercise 5.1: Health checks
+Đã implement 2 endpoint trong bản develop/production theo đúng vai trò liveness và readiness:
 
-## Additional Notes
+1. `/health` (liveness)
+- Trả về HTTP `200` khi process đang sống.
+- Response có `status`, `instance_id`, `uptime_seconds` để tiện quan sát khi scale.
 
-- [Optional note 1]
-- [Optional note 2]
+2. `/ready` (readiness)
+- Thực hiện kiểm tra dependency quan trọng (Redis ping).
+- Trả về HTTP `200` khi sẵn sàng nhận traffic.
+- Trả về HTTP `503` nếu dependency chưa sẵn sàng.
+
+Kết quả test:
+- `GET http://localhost:8080/health` trả `200 OK`.
+- Trong output có `redis_connected: true`, xác nhận backend dependency đã ready.
+
+### Exercise 5.2: Graceful shutdown
+Đã triển khai cơ chế graceful shutdown theo lifecycle server:
+
+1. Khi nhận tín hiệu dừng, instance ngừng nhận request mới.
+2. Các request đang xử lý được hoàn tất trong timeout cho phép.
+3. Kết nối tài nguyên được đóng khi app shutdown.
+4. Process thoát có kiểm soát, không cắt ngang request.
+
+Ý nghĩa:
+- Giảm lỗi 5xx khi rolling update/restart container.
+- Giữ trải nghiệm ổn định cho client trong lúc deploy.
+
+### Exercise 5.3: Stateless design
+Đã refactor theo đúng yêu cầu stateless:
+
+1. Không lưu state hội thoại trong biến memory theo instance.
+2. Lưu/đọc history từ Redis với key theo user/session (`history:{user_id}` và session key).
+3. Redis được cấu hình là bắt buộc ở startup (fail-fast nếu Redis không sẵn sàng).
+
+### Exercise 5.4: Load balancing
+Đã chạy stack với Nginx + 3 agent instances:
+
+1. Lệnh chạy:
+    `docker compose up -d --build --scale agent=3`
+2. Trạng thái services:
+    `production-agent-1`, `production-agent-2`, `production-agent-3` đều `Up (healthy)`.
+3. Nginx publish `0.0.0.0:8080->80/tcp` và route request vào cụm agent.
+
+Kết quả quan sát:
+- Header và output test cho thấy request được phân tán sang nhiều backend khác nhau.
+- Hệ thống vẫn phục vụ bình thường khi chạy theo mô hình nhiều instance sau load balancer.
+
+### Exercise 5.5: Test stateless
+Đã chạy thành công script:
+
+`python test_stateless.py`
+
+Kết quả chính:
+
+1. Script tạo session và gửi 5 request liên tiếp.
+2. Request được phục vụ bởi nhiều instance khác nhau:
+    `instance-57d05d`, `instance-9bbfe1`, `instance-9bd648`.
+3. Conversation history vẫn toàn vẹn:
+    `Total messages: 10` (5 user + 5 assistant).
+4. Script kết luận:
+    `Session history preserved across all instances via Redis`.

@@ -5,7 +5,7 @@ Lớp bảo vệ đơn giản nhất: kiểm tra header X-API-Key.
 Phù hợp cho: internal API, B2B, MVP.
 
 Chạy:
-    AGENT_API_KEY=my-secret-key python app.py
+    AGENT_API_KEY=secret-key-123 python app.py
 
 Test:
     # Có key → 200
@@ -86,4 +86,4 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     print(f"API Key: {API_KEY}")
     print(f"Test: curl -H 'X-API-Key: {API_KEY}' http://localhost:{port}/ask?question=hello")
-    uvicorn.run(app, host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)

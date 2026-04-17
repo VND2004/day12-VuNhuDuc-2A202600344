@@ -11,6 +11,7 @@ Trong production: lưu trong Redis/DB, không phải in-memory.
 import time
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,29 @@ logger = logging.getLogger(__name__)
 # Giá token (tham khảo, thay đổi theo model)
 PRICE_PER_1K_INPUT_TOKENS = 0.00015   # GPT-4o-mini: $0.15/1M input
 PRICE_PER_1K_OUTPUT_TOKENS = 0.0006   # GPT-4o-mini: $0.60/1M output
+MONTHLY_USER_BUDGET_USD = 10.0
+MONTHLY_BUDGET_TTL_SECONDS = 32 * 24 * 3600
+
+
+def check_budget(user_id: str, estimated_cost: float) -> bool:
+    """
+    Return True neu con monthly budget, False neu vuot.
+
+    Redis key format: budget:{user_id}:{YYYY-MM}
+    """
+    import redis
+
+    month_key = datetime.now().strftime("%Y-%m")
+    key = f"budget:{user_id}:{month_key}"
+    r = redis.Redis()
+
+    current = float(r.get(key) or 0)
+    if current + estimated_cost > MONTHLY_USER_BUDGET_USD:
+        return False
+
+    r.incrbyfloat(key, estimated_cost)
+    r.expire(key, MONTHLY_BUDGET_TTL_SECONDS)
+    return True
 
 
 @dataclass

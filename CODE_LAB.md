@@ -372,12 +372,12 @@ python app.py
 
 curl http://localhost:8000/token -X POST \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "secret"}'
+  -d '{"username": "student", "password": "demo123"}'
 ```
 
 3. Dùng token để gọi API:
 ```bash
-TOKEN="<token_từ_bước_2>"
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdHVkZW50Iiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NzY0MjM3MTQsImV4cCI6MTc3NjQyNzMxNH0.nCokRaxcUaZefShsa7EnOGZVzd7FySHBhFa6sGu3DWA"
 curl http://localhost:8000/ask -X POST \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
